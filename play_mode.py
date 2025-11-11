@@ -6,7 +6,7 @@ import game_world
 
 from knight import Knight
 
-boy = None
+
 
 def handle_events():
     event_list = get_events()
@@ -16,7 +16,7 @@ def handle_events():
         elif event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE:
             game_framework.quit()
         else:
-            boy.handle_event(event)
+            pass
 
 def init():
     main_ch = Knight()
