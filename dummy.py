@@ -51,7 +51,7 @@ class attacked:
         self.dt+= game_framework.frame_time * FT
         self.i_w = getattr(self.dummy.image[self.frame], 'w',0)
         self.i_h = getattr(self.dummy.image[self.frame], 'h', 0)
-        if self.dt > 10:
+        if self.dt > 5:
             self.dummy.StateMachine.handle_state_event(('TIMEOUT', None))
     def draw(self):
         self.dummy.image[int(self.frame)].clip_draw(0,0,self.i_w,self.i_h,self.dummy.x, self.dummy.y, self.size, self.size)
