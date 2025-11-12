@@ -98,11 +98,12 @@ class Dash:
     def exit(self, event):
         pass
     def do(self):
-        self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time)
+        self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time * 3)
         if self.knight.frame >= 6 :
             self.knight.frame = 0
             self.knight.frames = animation_frames[animation_names.index('Dash To Idle')]
             self.done_flag = True
+            self.knight.state = 'Idle'
         if self.knight.frame >= self.knight.frames+1 and self.done_flag:
             self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
         if not self. done_flag : self.knight.x = self.knight.x + DPPS * game_framework.frame_time * self.knight.dir
