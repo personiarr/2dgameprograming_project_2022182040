@@ -1,5 +1,6 @@
 from pico2d import *
 import game_framework
+import game_world
 from state_machine import StateMachine
 
 FRAMES_PER_ACTION = 10
@@ -65,20 +66,25 @@ class Walk:
 class Attack:
     def __init__(self, knight):
         self.knight = knight
+
     def enter(self, event):
         self.knight.frame = 0
         self.knight.frames = animation_frames[animation_names.index('Slash')]
         self.knight.state = 'Slash'
+        self.effect = Effect(self.knight)
+        self.alt_flag = False
+        game_world.add_object(self.effect, 2)
     def exit(self, event):
         pass
     def do(self):
         self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time)
-        if self.knight.frame >= 7:
+        if self.knight.frame >= 9 and not self.alt_flag:
             self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
         #공격 딜레이, timeout 발생
     def draw(self):
         self.knight.image['Slash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
     def attack_delay(self,e):
+        self.alt_flag = True
         return self.knight.frame >= 6 and e[0] == 'INPUT' and e[1].type == SDL_KEYDOWN and e[1].key == SDLK_x
 class Dash:
     def __init__(self, knight):
@@ -118,14 +124,32 @@ class AltAttack:
         self.knight.frame = 0
         self.knight.frames = animation_frames[animation_names.index('SlashAlt')]
         self.knight.state = 'SlashAlt'
+        self.effect = Effect(self.knight, shape='SlashEffectAlt')
+        game_world.add_object(self.effect, 2)
     def exit(self, event):
         pass
     def do(self):
         self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
-        if self.knight.frame >= 7:
+        if self.knight.frame >= 9:
             self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
     def draw(self):
         self.knight.image['Slash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
+    def attack_delay(self,e):
+        return self.knight.frame >= 6 and e[0] == 'INPUT' and e[1].type == SDL_KEYDOWN and e[1].key == SDLK_x
+
+class Effect:
+    def __init__(self, knight, shape=None):
+        self.knight = knight
+        self.frame = 0
+        if shape == None : self.shape = self.knight.state + 'Effect'
+        else : self.shape = shape
+        self.frames = animation_frames[animation_names.index(self.shape)]
+    def update(self):
+        self.frame = (self.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time)
+        if self.frame >= self.frames:
+            game_world.remove_object(self)
+    def draw(self):
+        self.knight.image[self.shape][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
 
 class Knight:
     image = None
@@ -151,7 +175,7 @@ class Knight:
                 self.WALK : {x_down: self.ATTACK, time_out : self.IDLE, c_down : self.DASH, alt_down : self.JUMP, right_down : self.IDLE, left_down : self.IDLE, right_up : self.IDLE, left_up : self.IDLE},
                 self.DASH : {time_out: self.IDLE},
                 self.JUMP : {time_out: self.IDLE},
-                self.ALTATTACK : {time_out: self.IDLE, self.ATTACK.attack_delay : self.ATTACK},
+                self.ALTATTACK : {time_out: self.IDLE, self.ALTATTACK.attack_delay : self.ATTACK},
 
     }
         )

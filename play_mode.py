@@ -4,7 +4,7 @@ from pico2d import *
 import game_framework
 import game_world
 
-from knight import Knight
+from knight import Knight, Effect
 
 main_ch = None
 
@@ -22,6 +22,7 @@ def init():
     global main_ch
     main_ch = Knight()
     game_world.add_object(main_ch, 1)
+
 
 def update():
     game_world.update()
