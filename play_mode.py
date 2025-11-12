@@ -6,6 +6,7 @@ import game_world
 import knight
 from knight import Knight, Effect
 from maps import Map
+import dummy
 main_ch = None
 
 def handle_events():
@@ -29,7 +30,10 @@ def init():
     game_world.add_object(main_ch, 1)
     map = Map()
     game_world.add_object(map, 0)
+    training_dummy = dummy.Dummy()
+    game_world.add_object(training_dummy, 1)
 
+    game_world.add_collision_pairs("attack:dummy", None, training_dummy)
     game_world.add_collision_pairs("knight:ground", main_ch, map)
 
 def update():

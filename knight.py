@@ -182,6 +182,7 @@ class Attack:
         self.alt_flag = False
         self.walk_flag = False
         game_world.add_object(self.effect, 2)
+        game_world.add_collision_pairs('attack:dummy', self.effect, None)
     def exit(self, event):
         pass
     def do(self):
@@ -209,6 +210,7 @@ class AltAttack:
         self.effect = Effect(self.knight, shape='SlashEffectAlt',x=40,y=50)
         game_world.add_object(self.effect, 2)
         self.alt_flag = False
+        game_world.add_collision_pairs('attack:dummy', self.effect, None)
     def exit(self, event):
         pass
     def do(self):
@@ -254,6 +256,7 @@ class downslash:
         self.knight.state = 'DownSlash'
         self.effect = Effect(self.knight, shape='DownSlashEffect', x=0,y=-50)
         game_world.add_object(self.effect, 2)
+        game_world.add_collision_pairs('attack:dummy', self.effect, None)
     def exit(self, event):
         pass
     def do(self):
@@ -273,6 +276,7 @@ class upperslash:
         self.knight.state = 'UpSlash'
         self.effect = Effect(self.knight, shape='UpSlashEffect',x=0,y=50)
         game_world.add_object(self.effect, 2)
+        game_world.add_collision_pairs('attack:dummy', self.effect, None)
     def exit(self, event):
         pass
     def do(self):
@@ -291,6 +295,7 @@ class jump_upper_slash:
         self.knight.state = 'UpSlash'
         self.effect = Effect(self.knight, shape='UpSlashEffect',x=0,y=50)
         game_world.add_object(self.effect, 2)
+        game_world.add_collision_pairs('attack:dummy', self.effect, None)
     def exit(self, event):
         pass
     def do(self):
@@ -320,7 +325,11 @@ class Effect:
         self.i_height = getattr(self.knight.image[self.shape][int(self.frame)], 'h',0)
     def draw(self):
         self.knight.image[self.shape][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x + (self.knight.dir * self.dx), self.knight.y+ (self.dy), 2*self.i_width, 2*self.i_height)
-
+    def get_bb(self):
+        return self.knight.x + (self.knight.dir * self.dx) - (self.i_width) , self.knight.y + (self.dy) - (self.i_height), self.knight.x + (self.knight.dir * self.dx) + (self.i_width), self.knight.y + (self.dy) + (self.i_height)
+    def handle_collision(self, group, other):
+        if group == "attack:dummy":
+            pass
 
 
 class Knight:
