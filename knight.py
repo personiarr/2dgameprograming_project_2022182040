@@ -17,7 +17,7 @@ PPM = 20
 PPS = MPS * PPM
 DMPS = MPS * 10
 DPPS = DMPS * 10
-G = 20
+G = 30
 GPPS = G * PPM
 JMPS = 18
 JPPS = JMPS * PPM
@@ -50,7 +50,8 @@ def jump_atk_to_idle(e):
     return e[0] == 'TIMEOUT' and not (SDLK_RIGHT in pressed_keys or SDLK_LEFT in pressed_keys)
 def jump_atk_to_walk(e):
     return e[0] == 'TIMEOUT' and (SDLK_RIGHT in pressed_keys or SDLK_LEFT in pressed_keys)
-
+def to_upper_slash(e):
+    return e[0] == 'INPUT' and e[1].type == SDL_KEYDOWN and e[1].key == SDLK_x and (SDLK_UP in pressed_keys)
 time_out = lambda e: e[0] == 'TIMEOUT'
 class Idle:
     def __init__(self, knight):
@@ -251,18 +252,54 @@ class downslash:
         self.knight.frame = 0
         self.knight.frames = animation_frames[animation_names.index('DownSlash')]
         self.knight.state = 'DownSlash'
-        self.effect = Effect(self.knight, shape='DownSlashEffect', x=0,y=-30)
+        self.effect = Effect(self.knight, shape='DownSlashEffect', x=0,y=-50)
         game_world.add_object(self.effect, 2)
     def exit(self, event):
         pass
     def do(self):
         self.knight.frame = (self.knight.frame + ATK_FPA * ATK_APT * game_framework.frame_time)
-        if self.knight.frame >= self.knight.frames- 5:
+        if self.knight.frame >= self.knight.frames- 8:
             self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
         self.knight.vy -=  GPPS * game_framework.frame_time
     def draw(self):
         self.knight.image['DownSlash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
 
+class upperslash:
+    def __init__(self, knight):
+        self.knight = knight
+    def enter(self, event):
+        self.knight.frame = 0
+        self.knight.frames = animation_frames[animation_names.index('UpSlash')]
+        self.knight.state = 'UpSlash'
+        self.effect = Effect(self.knight, shape='UpSlashEffect',x=0,y=50)
+        game_world.add_object(self.effect, 2)
+    def exit(self, event):
+        pass
+    def do(self):
+        self.knight.frame = (self.knight.frame + ATK_FPA * ATK_APT * game_framework.frame_time)
+        if self.knight.frame >= self.knight.frames-8:
+            self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
+    def draw(self):
+        self.knight.image['UpSlash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
+
+class jump_upper_slash:
+    def __init__(self, knight):
+        self.knight = knight
+    def enter(self, event):
+        self.knight.frame = 0
+        self.knight.frames = animation_frames[animation_names.index('UpSlash')]
+        self.knight.state = 'UpSlash'
+        self.effect = Effect(self.knight, shape='UpSlashEffect',x=0,y=50)
+        game_world.add_object(self.effect, 2)
+    def exit(self, event):
+        pass
+    def do(self):
+        self.knight.frame = (self.knight.frame + ATK_FPA * ATK_APT * game_framework.frame_time)
+        if self.knight.frame >= self.knight.frames-8:
+            self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
+        self.knight.vy -=  GPPS * game_framework.frame_time
+    def draw(self):
+        self.knight.image['UpSlash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
 
 class Effect:
     def __init__(self, knight, shape=None,x=0,y=0):
@@ -306,17 +343,22 @@ class Knight:
         self.ALTATTACK = AltAttack(self)
         self.FALL = Fall(self)
         self.DOWNSLASH = downslash(self)
+        self.UPPER_SLASH = upperslash(self)
+        self.JUMP_UPPER_SLASH = jump_upper_slash(self)
         self.StateMachine = StateMachine(
             self.IDLE,
     {
-                self.IDLE : {x_down: self.ATTACK, right_down: self.WALK, left_down: self.WALK, c_down : self.DASH, alt_down : self.JUMP, right_up : self.WALK, left_up : self.WALK},
+                self.IDLE : {to_upper_slash:self.UPPER_SLASH,x_down: self.ATTACK, right_down: self.WALK, left_down: self.WALK, c_down : self.DASH, alt_down : self.JUMP, right_up : self.WALK, left_up : self.WALK},
                 self.ATTACK : {self.ATTACK.attack_delay : self.ALTATTACK, atk_timeout : self.WALK, time_out : self.IDLE, },
                 self.WALK : {x_down: self.ATTACK, time_out : self.IDLE, c_down : self.DASH, alt_down : self.JUMP, right_down : self.IDLE, left_down : self.IDLE, right_up : self.IDLE, left_up : self.IDLE},
                 self.DASH : { self.dash_timeout_to_walk: self.WALK,time_out: self.IDLE,},
-                self.JUMP : {jump_timeout:self.WALK, time_out: self.IDLE, jump_atk : self.DOWNSLASH,},
+                self.JUMP : {jump_timeout:self.WALK, time_out: self.IDLE, jump_atk : self.DOWNSLASH,to_upper_slash:self.JUMP_UPPER_SLASH},
                 self.ALTATTACK : {self.ALTATTACK.attack_delay : self.ATTACK,atk_timeout : self.WALK, time_out: self.IDLE,},
                 self.FALL : {jump_timeout : self.WALK, time_out : self.IDLE,},
                 self.DOWNSLASH : {time_out:self.FALL, jump_atk_to_idle : self.IDLE, jump_atk_to_walk : self.WALK},
+                self.UPPER_SLASH : {atk_timeout:self.WALK, time_out : self.IDLE,},
+                self.JUMP_UPPER_SLASH : { time_out :self.FALL, jump_atk_to_idle : self.IDLE, jump_atk_to_walk : self.WALK}
+
     }
         )
     def dash_timeout_to_walk(self,e):
