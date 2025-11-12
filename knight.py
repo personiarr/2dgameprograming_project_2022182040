@@ -46,6 +46,11 @@ def jump_timeout(e):
     return e[0] == 'TIMEOUT' and ((SDLK_RIGHT in pressed_keys and not (SDLK_LEFT in pressed_keys)) or (SDLK_LEFT in pressed_keys and not (SDLK_RIGHT in pressed_keys)))
 def jump_atk(e):
     return e[0] == 'INPUT' and e[1].type == SDL_KEYDOWN and e[1].key == SDLK_x and (SDLK_DOWN in pressed_keys)
+def jump_atk_to_idle(e):
+    return e[0] == 'TIMEOUT' and not (SDLK_RIGHT in pressed_keys or SDLK_LEFT in pressed_keys)
+def jump_atk_to_walk(e):
+    return e[0] == 'TIMEOUT' and (SDLK_RIGHT in pressed_keys or SDLK_LEFT in pressed_keys)
+
 time_out = lambda e: e[0] == 'TIMEOUT'
 class Idle:
     def __init__(self, knight):
@@ -140,7 +145,7 @@ class jump:
     def enter(self, event):
         self.knight.frame = 0
         self.knight.frames = animation_frames[animation_names.index('Fall')]
-        self.knight.state = 'Fall'
+        self.knight.state = 'Jump'
         self.knight.vy = JPPS
         self.knight.y += 10
         self.frame_flag = False
@@ -172,7 +177,7 @@ class Attack:
         self.knight.frame = 0
         self.knight.frames = animation_frames[animation_names.index('Slash')]
         self.knight.state = 'Slash'
-        self.effect = Effect(self.knight)
+        self.effect = Effect(self.knight, shape='SlashEffect',x=40,y=50)
         self.alt_flag = False
         self.walk_flag = False
         game_world.add_object(self.effect, 2)
@@ -200,7 +205,7 @@ class AltAttack:
         self.knight.frame = 0
         self.knight.frames = animation_frames[animation_names.index('SlashAlt')]
         self.knight.state = 'SlashAlt'
-        self.effect = Effect(self.knight, shape='SlashEffectAlt')
+        self.effect = Effect(self.knight, shape='SlashEffectAlt',x=40,y=50)
         game_world.add_object(self.effect, 2)
         self.alt_flag = False
     def exit(self, event):
@@ -229,15 +234,42 @@ class Fall:
         pass
     def do(self):
         self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
-        self.knight.sy = - GPPS * game_framework.frame_time
+        self.knight.vy -=  GPPS * game_framework.frame_time
+        if SDLK_RIGHT in pressed_keys and not (SDLK_LEFT in pressed_keys):
+            self.knight.dir = 1
+            self.knight.sx =  PPS * game_framework.frame_time * self.knight.dir
+        elif SDLK_LEFT in pressed_keys and not (SDLK_RIGHT in pressed_keys):
+            self.knight.dir = -1
+            self.knight.sx =  PPS * game_framework.frame_time * self.knight.dir
     def draw(self):
         self.knight.image['Fall'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
 
+class downslash:
+    def __init__(self, knight):
+        self.knight = knight
+    def enter(self, event):
+        self.knight.frame = 0
+        self.knight.frames = animation_frames[animation_names.index('DownSlash')]
+        self.knight.state = 'DownSlash'
+        self.effect = Effect(self.knight, shape='DownSlashEffect', x=0,y=-30)
+        game_world.add_object(self.effect, 2)
+    def exit(self, event):
+        pass
+    def do(self):
+        self.knight.frame = (self.knight.frame + ATK_FPA * ATK_APT * game_framework.frame_time)
+        if self.knight.frame >= self.knight.frames- 5:
+            self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
+        self.knight.vy -=  GPPS * game_framework.frame_time
+    def draw(self):
+        self.knight.image['DownSlash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
+
 
 class Effect:
-    def __init__(self, knight, shape=None):
+    def __init__(self, knight, shape=None,x=0,y=0):
         self.knight = knight
         self.frame = 0
+        self.dx =x
+        self.dy =y
         if shape == None : self.shape = self.knight.state + 'Effect'
         else : self.shape = shape
         self.frames = animation_frames[animation_names.index(self.shape)]
@@ -250,7 +282,7 @@ class Effect:
         self.i_width = getattr(self.knight.image[self.shape][int(self.frame)], 'w',0)
         self.i_height = getattr(self.knight.image[self.shape][int(self.frame)], 'h',0)
     def draw(self):
-        self.knight.image[self.shape][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x + (self.knight.dir * 40), self.knight.y+ (40), 2*self.i_width, 2*self.i_height)
+        self.knight.image[self.shape][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x + (self.knight.dir * self.dx), self.knight.y+ (self.dy), 2*self.i_width, 2*self.i_height)
 
 
 
@@ -273,6 +305,7 @@ class Knight:
         self.JUMP = jump(self)
         self.ALTATTACK = AltAttack(self)
         self.FALL = Fall(self)
+        self.DOWNSLASH = downslash(self)
         self.StateMachine = StateMachine(
             self.IDLE,
     {
@@ -280,9 +313,10 @@ class Knight:
                 self.ATTACK : {self.ATTACK.attack_delay : self.ALTATTACK, atk_timeout : self.WALK, time_out : self.IDLE, },
                 self.WALK : {x_down: self.ATTACK, time_out : self.IDLE, c_down : self.DASH, alt_down : self.JUMP, right_down : self.IDLE, left_down : self.IDLE, right_up : self.IDLE, left_up : self.IDLE},
                 self.DASH : { self.dash_timeout_to_walk: self.WALK,time_out: self.IDLE,},
-                self.JUMP : {jump_timeout:self.WALK, time_out: self.IDLE},
+                self.JUMP : {jump_timeout:self.WALK, time_out: self.IDLE, jump_atk : self.DOWNSLASH,},
                 self.ALTATTACK : {self.ALTATTACK.attack_delay : self.ATTACK,atk_timeout : self.WALK, time_out: self.IDLE,},
-                self.FALL : {}
+                self.FALL : {jump_timeout : self.WALK, time_out : self.IDLE,},
+                self.DOWNSLASH : {time_out:self.FALL, jump_atk_to_idle : self.IDLE, jump_atk_to_walk : self.WALK},
     }
         )
     def dash_timeout_to_walk(self,e):
@@ -328,5 +362,6 @@ class Knight:
         if group == "knight:ground":
             self.y = 186 + (self.size/2)
             self.sy = 0
-            if self.state == 'Fall':
+            if self.state == 'Fall' or self.state == 'DownSlash' or self.state == 'Jump':
                 self.StateMachine.handle_state_event(('TIMEOUT', None))
+
