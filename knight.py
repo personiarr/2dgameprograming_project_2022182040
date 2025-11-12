@@ -10,12 +10,14 @@ FRAMES_PER_ACTION = 10
 ACTION_PER_TIME = 1
 ATK_FPA = 8
 ATK_APT = 2
+J_FPA = 3
+J_APT = 2
 MPS = 10
 PPM = 20
 PPS = MPS * PPM
 DMPS = MPS * 10
 DPPS = DMPS * 10
-G = 15
+G = 20
 GPPS = G * PPM
 JMPS = 18
 JPPS = JMPS * PPM
@@ -40,8 +42,10 @@ def left_up(e):
     return e[0] == 'INPUT' and e[1].type == SDL_KEYUP and e[1].key == SDLK_LEFT
 def atk_timeout(e):
     return e[0] == 'TIMEOUT' and ((SDLK_RIGHT in pressed_keys and not (SDLK_LEFT in pressed_keys)) or (SDLK_LEFT in pressed_keys and not (SDLK_RIGHT in pressed_keys)))
-
-
+def jump_timeout(e):
+    return e[0] == 'TIMEOUT' and ((SDLK_RIGHT in pressed_keys and not (SDLK_LEFT in pressed_keys)) or (SDLK_LEFT in pressed_keys and not (SDLK_RIGHT in pressed_keys)))
+def jump_atk(e):
+    return e[0] == 'INPUT' and e[1].type == SDL_KEYDOWN and e[1].key == SDLK_x and (SDLK_DOWN in pressed_keys)
 time_out = lambda e: e[0] == 'TIMEOUT'
 class Idle:
     def __init__(self, knight):
@@ -139,10 +143,16 @@ class jump:
         self.knight.state = 'Fall'
         self.knight.vy = JPPS
         self.knight.y += 10
+        self.frame_flag = False
     def exit(self, event):
         return True
     def do(self):
-        self.knight.frame = min((self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time)%self.knight.frames, self.knight.frames)
+        if not self.frame_flag :self.knight.frame = (self.knight.frame +J_FPA* J_APT * game_framework.frame_time)
+        else : self.knight.frame = (self.knight.frame -J_FPA* J_APT * game_framework.frame_time)
+        if self.knight.frame >= self.knight.frames :
+            self.frame_flag = True
+        elif  self.frame_flag and self.knight.frame <=0 :
+            self.frame_flag = False
         self.knight.vy -= G * game_framework.frame_time* PPM
         if SDLK_RIGHT in pressed_keys and not (SDLK_LEFT in pressed_keys):
             self.knight.dir = 1
@@ -270,7 +280,7 @@ class Knight:
                 self.ATTACK : {self.ATTACK.attack_delay : self.ALTATTACK, atk_timeout : self.WALK, time_out : self.IDLE, },
                 self.WALK : {x_down: self.ATTACK, time_out : self.IDLE, c_down : self.DASH, alt_down : self.JUMP, right_down : self.IDLE, left_down : self.IDLE, right_up : self.IDLE, left_up : self.IDLE},
                 self.DASH : { self.dash_timeout_to_walk: self.WALK,time_out: self.IDLE,},
-                self.JUMP : {time_out: self.IDLE},
+                self.JUMP : {jump_timeout:self.WALK, time_out: self.IDLE},
                 self.ALTATTACK : {self.ALTATTACK.attack_delay : self.ATTACK,atk_timeout : self.WALK, time_out: self.IDLE,},
                 self.FALL : {}
     }
