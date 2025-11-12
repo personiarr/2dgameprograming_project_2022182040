@@ -8,7 +8,8 @@ ACTION_PER_TIME = 1
 MPS = 10
 PPM = 20
 PPS = MPS * PPM
-
+DMPS = MPS * 10
+DPPS = DMPS * 10
 animation_names = ['Dash To Idle', 'Dash', 'DownSlash', 'DownSlashEffect', 'Fall','Idle Hurt', 'Idle', 'Slash', 'SlashAlt','SlashEffect','SlashEffectAlt','UpSlash','UpSlashEffect','Walk']
 animation_frames = [3,11,14,5,5,11,8,14,14,5,5,14,5,6]
 
@@ -93,16 +94,22 @@ class Dash:
         self.knight.frame = 0
         self.knight.frames = animation_frames[animation_names.index('Dash')]
         self.knight.state = 'Dash'
+        self.done_flag = False
     def exit(self, event):
         pass
     def do(self):
         self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time)
-        if self.knight.frame >= self.knight.frames+1:
+        if self.knight.frame >= 6 :
+            self.knight.frame = 0
+            self.knight.frames = animation_frames[animation_names.index('Dash To Idle')]
+            self.done_flag = True
+        if self.knight.frame >= self.knight.frames+1 and self.done_flag:
             self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
+        if not self. done_flag : self.knight.x = self.knight.x + DPPS * game_framework.frame_time * self.knight.dir
         #타임아웃
     def draw(self):
-        self.knight.image['Dash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
-
+        if not self.done_flag : self.knight.image['Dash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
+        else : self.knight.image['Dash To Idle'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
 class jump:
     def __init__(self, knight):
         self.knight = knight
