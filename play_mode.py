@@ -5,7 +5,7 @@ import game_framework
 import game_world
 import knight
 from knight import Knight, Effect
-
+from maps import Map
 main_ch = None
 
 def handle_events():
@@ -27,7 +27,10 @@ def init():
     global main_ch
     main_ch = Knight()
     game_world.add_object(main_ch, 1)
+    map = Map()
+    game_world.add_object(map, 0)
 
+    game_world.add_collision_pairs("knight:ground", main_ch, map)
 
 def update():
     game_world.update()

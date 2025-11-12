@@ -15,9 +15,10 @@ PPM = 20
 PPS = MPS * PPM
 DMPS = MPS * 10
 DPPS = DMPS * 10
-G = 10
+G = 15
 GPPS = G * PPM
-
+JMPS = 18
+JPPS = JMPS * PPM
 animation_names = ['Dash To Idle', 'Dash', 'DownSlash', 'DownSlashEffect', 'Fall','Idle Hurt', 'Idle', 'Slash', 'SlashAlt','SlashEffect','SlashEffectAlt','UpSlash','UpSlashEffect','Walk', 'Land']
 animation_frames = [3,11,14,5,5,11,8,14,14,5,5,14,5,6,2]
 
@@ -84,11 +85,16 @@ class Walk:
             elif self.knight.move_dir == -1:
                 self.knight.dir = -1
     def exit(self,event):
-        if event[1].type==SDL_KEYUP and (event[1].key==SDLK_LEFT or event[1].key==SDLK_RIGHT):self.knight.move_dir = 0
+        # event가 ('TIMEOUT', None) 혹은 INPUT이 아닌 경우를 안전하게 처리
+        try:
+            if event and event[0] == 'INPUT' and event[1] is not None and event[1].type == SDL_KEYUP and (event[1].key == SDLK_LEFT or event[1].key == SDLK_RIGHT):
+                self.knight.move_dir = 0
+        except Exception:
+            # 어떤 이유로든 event 접근이 실패해도 전이는 계속되도록 기본 동작 유지
+            pass
         return True
     def do(self):
         if self.alt_state == 0 : self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
-        #움직임
         self.knight.sx =  PPS * game_framework.frame_time * self.knight.dir
     def draw(self):
         self.knight.image['Walk'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
@@ -131,10 +137,19 @@ class jump:
         self.knight.frame = 0
         self.knight.frames = animation_frames[animation_names.index('Fall')]
         self.knight.state = 'Fall'
+        self.knight.vy = JPPS
+        self.knight.y += 10
     def exit(self, event):
         return True
     def do(self):
-        self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
+        self.knight.frame = min((self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time)%self.knight.frames, self.knight.frames)
+        self.knight.vy -= G * game_framework.frame_time* PPM
+        if SDLK_RIGHT in pressed_keys and not (SDLK_LEFT in pressed_keys):
+            self.knight.dir = 1
+            self.knight.sx =  PPS * game_framework.frame_time * self.knight.dir
+        elif SDLK_LEFT in pressed_keys and not (SDLK_RIGHT in pressed_keys):
+            self.knight.dir = -1
+            self.knight.sx =  PPS * game_framework.frame_time * self.knight.dir
     def draw(self):
         self.knight.image['Fall'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
 
@@ -193,6 +208,21 @@ class AltAttack:
         if e[1].type==SDL_KEYDOWN and e[1].key == SDLK_x:self.alt_flag = True
         return self.knight.frame >= 6 and e[0] == 'INPUT' and e[1].type == SDL_KEYDOWN and e[1].key == SDLK_x
 
+class Fall:
+    def __init__(self, knight):
+        self.knight = knight
+    def enter(self, event):
+        self.knight.frame = 0
+        self.knight.frames = animation_frames[animation_names.index('Fall')]
+        self.knight.state = 'Fall'
+    def exit(self, event):
+        pass
+    def do(self):
+        self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
+        self.knight.sy = - GPPS * game_framework.frame_time
+    def draw(self):
+        self.knight.image['Fall'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
+
 
 class Effect:
     def __init__(self, knight, shape=None):
@@ -201,12 +231,17 @@ class Effect:
         if shape == None : self.shape = self.knight.state + 'Effect'
         else : self.shape = shape
         self.frames = animation_frames[animation_names.index(self.shape)]
+        self.i_width = getattr(self.knight.image[self.shape][0], 'w',0)
+        self.i_height = getattr(self.knight.image[self.shape][0], 'h',0)
     def update(self):
         self.frame = (self.frame + ATK_FPA * ATK_APT * game_framework.frame_time)
         if self.frame >= self.frames:
             game_world.remove_object(self)
+        self.i_width = getattr(self.knight.image[self.shape][int(self.frame)], 'w',0)
+        self.i_height = getattr(self.knight.image[self.shape][int(self.frame)], 'h',0)
     def draw(self):
-        self.knight.image[self.shape][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
+        self.knight.image[self.shape][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x + (self.knight.dir * 40), self.knight.y+ (40), 2*self.i_width, 2*self.i_height)
+
 
 
 class Knight:
@@ -219,13 +254,15 @@ class Knight:
         self.frame = 0
         self.dir = -1
         self.move_dir = 0
-
+        self.size = 100
+        self.vy = -G * PPM
         self.IDLE = Idle(self)
         self.WALK = Walk(self)
         self.ATTACK = Attack(self)
         self.DASH = Dash(self)
         self.JUMP = jump(self)
-        self.ALTATTACK = AltAttack(self)  # Placeholder for Alt Attack state
+        self.ALTATTACK = AltAttack(self)
+        self.FALL = Fall(self)
         self.StateMachine = StateMachine(
             self.IDLE,
     {
@@ -235,7 +272,7 @@ class Knight:
                 self.DASH : { self.dash_timeout_to_walk: self.WALK,time_out: self.IDLE,},
                 self.JUMP : {time_out: self.IDLE},
                 self.ALTATTACK : {self.ALTATTACK.attack_delay : self.ATTACK,atk_timeout : self.WALK, time_out: self.IDLE,},
-
+                self.FALL : {}
     }
         )
     def dash_timeout_to_walk(self,e):
@@ -271,9 +308,15 @@ class Knight:
             self.move_dir = 0
         self.x += self.sx
         self.y += self.sy
-        self.sx, self.sy = 0,0
+        self.sx, self.sy = 0, self.vy * game_framework.frame_time
+
     def handle_event(self, event):
         self.StateMachine.handle_state_event(('INPUT', event))
-
-
-
+    def get_bb(self):
+        return self.x - (self.size/2), self.y - (self.size/2), self.x + (self.size/2), self.y + (self.size/2)
+    def handle_collision(self, group, other):
+        if group == "knight:ground":
+            self.y = 186 + (self.size/2)
+            self.sy = 0
+            if self.state == 'Fall':
+                self.StateMachine.handle_state_event(('TIMEOUT', None))
