@@ -25,6 +25,7 @@ def right_up(e):
     return e[0] == 'INPUT' and e[1].type == SDL_KEYUP and e[1].key == SDLK_RIGHT
 def left_up(e):
     return e[0] == 'INPUT' and e[1].type == SDL_KEYUP and e[1].key == SDLK_LEFT
+
 time_out = lambda e: e[0] == 'TIMEOUT'
 class Idle:
     def __init__(self, knight):
@@ -71,11 +72,14 @@ class Attack:
     def exit(self, event):
         pass
     def do(self):
-        self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
+        self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time)
+        if self.knight.frame >= 7:
+            self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
         #공격 딜레이, timeout 발생
     def draw(self):
         self.knight.image['Slash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
-
+    def attack_delay(self,e):
+        return self.knight.frame >= 6 and e[0] == 'INPUT' and e[1].type == SDL_KEYDOWN and e[1].key == SDLK_x
 class Dash:
     def __init__(self, knight):
         self.knight = knight
@@ -86,7 +90,9 @@ class Dash:
     def exit(self, event):
         pass
     def do(self):
-        self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
+        self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time)
+        if self.knight.frame >= self.knight.frames+1:
+            self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
         #타임아웃
     def draw(self):
         self.knight.image['Dash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
@@ -116,7 +122,8 @@ class AltAttack:
         pass
     def do(self):
         self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
-
+        if self.knight.frame >= 7:
+            self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
     def draw(self):
         self.knight.image['Slash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
 
@@ -140,11 +147,11 @@ class Knight:
             self.IDLE,
     {
                 self.IDLE : {x_down: self.ATTACK, right_down: self.WALK, left_down: self.WALK, c_down : self.DASH, alt_down : self.JUMP},
-                self.ATTACK : {x_down : self.ALTATTACK, time_out : self.IDLE},
+                self.ATTACK : {self.ATTACK.attack_delay : self.ALTATTACK, time_out : self.IDLE},
                 self.WALK : {x_down: self.ATTACK, time_out : self.IDLE, c_down : self.DASH, alt_down : self.JUMP, right_down : self.IDLE, left_down : self.IDLE, right_up : self.IDLE, left_up : self.IDLE},
                 self.DASH : {time_out: self.IDLE},
                 self.JUMP : {time_out: self.IDLE},
-                self.ALTATTACK : {time_out: self.IDLE, x_down : self.ATTACK},
+                self.ALTATTACK : {time_out: self.IDLE, self.ATTACK.attack_delay : self.ATTACK},
 
     }
         )
