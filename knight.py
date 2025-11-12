@@ -3,6 +3,8 @@ import game_framework
 import game_world
 from state_machine import StateMachine
 
+pressed_keys = set()
+
 FRAMES_PER_ACTION = 10
 ACTION_PER_TIME = 1
 MPS = 10
@@ -51,12 +53,19 @@ class Walk:
         self.knight.frame = 0
         self.knight.frames = animation_frames[animation_names.index('Walk')]
         self.knight.state = 'Walk'
-        if event[1].key == SDLK_RIGHT:
+        if event[0]!='TIMEOUT' and event[1].key == SDLK_RIGHT:
             self.knight.dir = 1
-        else:
+            self.knight.move_dir = 1
+        elif event[0]!='TIMEOUT' and event[1].key == SDLK_LEFT:
             self.knight.dir = -1
+            self.knight.move_dir = -1
+        elif event[0]=='TIMEOUT':
+            if self.knight.move_dir == 1:
+                self.knight.dir = 1
+            elif self.knight.move_dir == -1:
+                self.knight.dir = -1
     def exit(self,event):
-        pass
+        if event[1].type==SDL_KEYUP and (event[1].key==SDLK_LEFT or event[1].key==SDLK_RIGHT):self.knight.move_dir = 0
     def do(self):
         if self.alt_state == 0 : self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
         #움직임
@@ -87,6 +96,8 @@ class Attack:
     def attack_delay(self,e):
         self.alt_flag = True
         return self.knight.frame >= 6 and e[0] == 'INPUT' and e[1].type == SDL_KEYDOWN and e[1].key == SDLK_x
+
+
 class Dash:
     def __init__(self, knight):
         self.knight = knight
@@ -103,14 +114,18 @@ class Dash:
             self.knight.frame = 0
             self.knight.frames = animation_frames[animation_names.index('Dash To Idle')]
             self.done_flag = True
-            self.knight.state = 'Idle'
+            #self.knight.state = 'Idle'
+        if self.knight.frame >=self.knight.frames+1 and self.done_flag and self.knight.move_dir !=0:
+            self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
         if self.knight.frame >= self.knight.frames+1 and self.done_flag:
             self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
-        if not self. done_flag : self.knight.x = self.knight.x + DPPS * game_framework.frame_time * self.knight.dir
-        #타임아웃
+        if not self.done_flag : self.knight.x = self.knight.x + DPPS * game_framework.frame_time * self.knight.dir
+
     def draw(self):
         if not self.done_flag : self.knight.image['Dash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
         else : self.knight.image['Dash To Idle'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
+
+
 class jump:
     def __init__(self, knight):
         self.knight = knight
@@ -124,6 +139,7 @@ class jump:
         self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
     def draw(self):
         self.knight.image['Fall'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
+
 
 class AltAttack:
     def __init__(self, knight):
@@ -145,6 +161,7 @@ class AltAttack:
     def attack_delay(self,e):
         return self.knight.frame >= 6 and e[0] == 'INPUT' and e[1].type == SDL_KEYDOWN and e[1].key == SDLK_x
 
+
 class Effect:
     def __init__(self, knight, shape=None):
         self.knight = knight
@@ -159,6 +176,7 @@ class Effect:
     def draw(self):
         self.knight.image[self.shape][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
 
+
 class Knight:
     image = None
     def __init__(self):
@@ -167,7 +185,7 @@ class Knight:
         self.state = 'Idle'
         self.frame = 0
         self.dir = -1
-
+        self.move_dir = 0
 
         self.IDLE = Idle(self)
         self.WALK = Walk(self)
@@ -181,13 +199,14 @@ class Knight:
                 self.IDLE : {x_down: self.ATTACK, right_down: self.WALK, left_down: self.WALK, c_down : self.DASH, alt_down : self.JUMP},
                 self.ATTACK : {self.ATTACK.attack_delay : self.ALTATTACK, time_out : self.IDLE},
                 self.WALK : {x_down: self.ATTACK, time_out : self.IDLE, c_down : self.DASH, alt_down : self.JUMP, right_down : self.IDLE, left_down : self.IDLE, right_up : self.IDLE, left_up : self.IDLE},
-                self.DASH : {time_out: self.IDLE},
+                self.DASH : { self.dash_timeout_to_walk: self.WALK,time_out: self.IDLE,},
                 self.JUMP : {time_out: self.IDLE},
                 self.ALTATTACK : {time_out: self.IDLE, self.ALTATTACK.attack_delay : self.ATTACK},
 
     }
         )
-
+    def dash_timeout_to_walk(self,e):
+        return e[0] == 'TIMEOUT' and (self.move_dir != 0 or SDLK_RIGHT in pressed_keys or SDLK_LEFT in pressed_keys)
 
 
     def load_sprite(self):
@@ -211,7 +230,12 @@ class Knight:
         #frames = animation_frames[animation_names.index(self.state)]
         #self.frame = (self.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % frames
         self.StateMachine.update()
-
+        if SDLK_RIGHT in pressed_keys and not (SDLK_LEFT in pressed_keys):
+            self.move_dir = 1
+        elif SDLK_LEFT in pressed_keys and not (SDLK_RIGHT in pressed_keys):
+            self.move_dir = -1
+        else:
+            self.move_dir = 0
     def handle_event(self, event):
         self.StateMachine.handle_state_event(('INPUT', event))
 

@@ -1,9 +1,9 @@
 import random
 from pico2d import *
-
+import state_machine
 import game_framework
 import game_world
-
+import knight
 from knight import Knight, Effect
 
 main_ch = None
@@ -17,6 +17,11 @@ def handle_events():
             game_framework.quit()
         else:
             main_ch.handle_event(event)
+            if event.type == SDL_KEYDOWN:
+                knight.pressed_keys.add(event.key)
+            elif event.type == SDL_KEYUP:
+                knight.pressed_keys.discard(event.key)
+
 
 def init():
     global main_ch

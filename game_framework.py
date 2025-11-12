@@ -47,6 +47,8 @@ def run(start_mode):
     stack = [start_mode]
     start_mode.init()
 
+    pressed_keys = set()
+
     global frame_time
     frame_time = 0.0
     current_time = time.time()
