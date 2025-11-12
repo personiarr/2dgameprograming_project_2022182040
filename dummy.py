@@ -18,7 +18,7 @@ class idle:
     def __init__(self, dummy):
         self.dummy = dummy
 
-        self.size = 192
+        self.size = 300
     def enter(self, event):
         self.frame = 0
         self.dt = 0
@@ -38,7 +38,7 @@ class attacked:
     def __init__(self, dummy):
         self.dummy = dummy
 
-        self.size = 192
+        self.size = 300
     def enter(self, event):
         self.frame = 0
         self.dt = 0
@@ -64,10 +64,11 @@ class Dummy:
             Dummy.image = []
             for i in range(0,7):
                 Dummy.image.append(load_image(f'./dummy_sprite/Training Dummy Anim_00{i}.png'))
-        self.x, self.y = 800, 150 + 96
+        self.size = 300
+        self.x, self.y = 800, 150 + (self.size /2)
         self.IDLE = idle(self)
         self.ATTACKED = attacked(self)
-        self.size = 192
+
 
         self.state = 'IDLE'
         self.StateMachine = StateMachine(
