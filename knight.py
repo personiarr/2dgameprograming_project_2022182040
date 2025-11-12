@@ -15,8 +15,13 @@ PPM = 20
 PPS = MPS * PPM
 DMPS = MPS * 10
 DPPS = DMPS * 10
-animation_names = ['Dash To Idle', 'Dash', 'DownSlash', 'DownSlashEffect', 'Fall','Idle Hurt', 'Idle', 'Slash', 'SlashAlt','SlashEffect','SlashEffectAlt','UpSlash','UpSlashEffect','Walk']
-animation_frames = [3,11,14,5,5,11,8,14,14,5,5,14,5,6]
+G = 10
+GPPS = G * PPM
+
+animation_names = ['Dash To Idle', 'Dash', 'DownSlash', 'DownSlashEffect', 'Fall','Idle Hurt', 'Idle', 'Slash', 'SlashAlt','SlashEffect','SlashEffectAlt','UpSlash','UpSlashEffect','Walk', 'Land']
+animation_frames = [3,11,14,5,5,11,8,14,14,5,5,14,5,6,2]
+
+
 
 def x_down(e):
     return e[0] == 'INPUT' and e[1].type == SDL_KEYDOWN and e[1].key == SDLK_x
@@ -84,7 +89,7 @@ class Walk:
     def do(self):
         if self.alt_state == 0 : self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % (self.knight.frames +1)
         #움직임
-        self.knight.x = self.knight.x + PPS * game_framework.frame_time * self.knight.dir
+        self.knight.sx =  PPS * game_framework.frame_time * self.knight.dir
     def draw(self):
         self.knight.image['Walk'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
 
@@ -98,8 +103,9 @@ class Dash:
         self.knight.frames = animation_frames[animation_names.index('Dash')]
         self.knight.state = 'Dash'
         self.done_flag = False
+        self.knight.sx = 0
     def exit(self, event):
-        pass
+        self.knight.sx = 0
     def do(self):
         self.knight.frame = (self.knight.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time * 3)
         if self.knight.frame >= 6 :
@@ -111,7 +117,7 @@ class Dash:
             self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
         if self.knight.frame >= self.knight.frames+1 and self.done_flag:
             self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
-        if not self.done_flag : self.knight.x = self.knight.x + DPPS * game_framework.frame_time * self.knight.dir
+        if not self.done_flag : self.knight.sx =  DPPS * game_framework.frame_time * self.knight.dir
 
     def draw(self):
         if not self.done_flag : self.knight.image['Dash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
@@ -149,9 +155,9 @@ class Attack:
         pass
     def do(self):
         self.knight.frame = (self.knight.frame + ATK_FPA * ATK_APT * game_framework.frame_time)
-        if self.knight.frame >= 8 and not self.alt_flag:
+        if self.knight.frame >= 7 and not self.alt_flag:
             self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
-        elif self.knight.frame >= 8 and self.alt_flag:
+        elif self.knight.frame >= 7 and self.alt_flag:
             self.knight.StateMachine.handle_state_event(('INPUT', SimpleNamespace(type=SDL_KEYDOWN, key=SDLK_x)))
         #공격 딜레이, timeout 발생
     def draw(self):
@@ -176,9 +182,9 @@ class AltAttack:
         pass
     def do(self):
         self.knight.frame = (self.knight.frame + ATK_FPA * ATK_APT * game_framework.frame_time) % (self.knight.frames +1)
-        if self.knight.frame >= 8 and not self.alt_flag:
+        if self.knight.frame >= 7 and not self.alt_flag:
             self.knight.StateMachine.handle_state_event(('TIMEOUT', None))
-        elif self.knight.frame >= 8 and self.alt_flag:
+        elif self.knight.frame >= 7 and self.alt_flag:
             self.knight.StateMachine.handle_state_event(('INPUT', SimpleNamespace(type=SDL_KEYDOWN, key=SDLK_x)))
     def draw(self):
         self.knight.image['Slash'][int(self.knight.frame)].composite_draw(0, 'h' if self.knight.dir == 1 else '', self.knight.x, self.knight.y)
@@ -208,6 +214,7 @@ class Knight:
     def __init__(self):
         self.load_sprite()
         self.x, self.y = 400, 300
+        self.sx,self.sy = 0,0
         self.state = 'Idle'
         self.frame = 0
         self.dir = -1
@@ -262,6 +269,9 @@ class Knight:
             self.move_dir = -1
         else:
             self.move_dir = 0
+        self.x += self.sx
+        self.y += self.sy
+        self.sx, self.sy = 0,0
     def handle_event(self, event):
         self.StateMachine.handle_state_event(('INPUT', event))
 

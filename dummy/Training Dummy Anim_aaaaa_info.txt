@@ -1,0 +1,14 @@
+version: 2
+type: collection
+name: Training Dummy Anim
+consistent_sprite_size: true
+enable_borders: true
+use_sprite_name: false
+sprites: 7
+training_dummy0000	Training Dummy Anim_000.png
+training_dummy0001	Training Dummy Anim_001.png
+training_dummy0002	Training Dummy Anim_002.png
+training_dummy0003	Training Dummy Anim_003.png
+training_dummy0004	Training Dummy Anim_004.png
+training_dummy0005	Training Dummy Anim_005.png
+training_dummy0006	Training Dummy Anim_006.png
